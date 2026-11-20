@@ -16,34 +16,29 @@ const generateImage = async (prompt, env) => {
   }
   const API_URL = `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/images/v1`
 
-  const inputs = {
-    prompt: `${prompt} on a plate on the table of a cosy restaurant  :: food photography, photorealistic, ultra realistic, maximum detail, recipes.com, epicurious, instagram :: 8k, volumetric light, cinematic, octane render  --v 3  --ar 9:16 --uplight --no blur, depth of field, dof, bokeh`,
-    negativePrompt: 'asymmetric, watermarks, text',
-    width: 2048,
-    height: 512,
-  }
-
-  const stream = await env.AI.run(
-    '@cf/stabilityai/stable-diffusion-xl-base-1.0',
-    inputs,
+  // FLUX.2 takes multipart form data and returns { image: base64 }.
+  // Keep width x height at or under 1 MP: that is billed at the flat
+  // "first MP" rate and stays well inside the free daily neuron allocation.
+  const form = new FormData()
+  form.append(
+    'prompt',
+    `Professional food photograph of ${prompt}, served on a plate on the table of a cosy restaurant. Photorealistic, highly detailed, warm natural light, sharp focus. No text, no watermarks.`,
   )
+  form.append('width', '1536')
+  form.append('height', '640')
 
-  const bytes = await new Response(stream).bytes()
+  const formRequest = new Response(form)
+  const { image } = await env.AI.run('@cf/black-forest-labs/flux-2-klein-9b', {
+    multipart: {
+      body: formRequest.body,
+      contentType: formRequest.headers.get('content-type'),
+    },
+  })
 
-  // Convert bytes to base64 safely
-  let base64
-  if (typeof Buffer !== 'undefined') {
-    // Node.js environment
-    base64 = Buffer.from(bytes).toString('base64')
-  } else {
-    // Browser or non-Node environment
-    let binary = ''
-    for (let i = 0; i < bytes.length; i++) {
-      binary += String.fromCharCode(bytes[i])
-    }
-    base64 = btoa(binary)
+  if (!image) {
+    throw new Error('Image generation returned no image')
   }
-  const dataUri = `data:image/png;base64,${base64}`
+  const dataUri = `data:image/jpeg;base64,${image}`
 
   // Prepare upload parameters
   const timestamp = Math.floor(Date.now() / 1000)
