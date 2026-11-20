@@ -98,11 +98,13 @@ const getDateKey = () => {
 
 const getData = async (env) => {
   const dateKey = getDateKey()
-  let result = [
-    'Het draait in de soep',
-    'We zitten in de puree',
-    'De mayonaise pakt niet',
-  ]
+  let result = {
+    menu: [
+      'Het draait in de soep',
+      'We zitten in de puree',
+      'De mayonaise pakt niet',
+    ],
+  }
 
   let storedMenu = null
 
@@ -125,9 +127,8 @@ const getData = async (env) => {
           JSON.stringify({ menu: handler.result }),
           expiration,
         )
+        result = { menu: handler.result }
       }
-
-      result = { menu: handler.result }
     } else {
       result = storedMenu
     }
